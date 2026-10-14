@@ -5,6 +5,7 @@
 #include <string.h>
 #include "raylib.h"
 #include "raymath.h"
+#include "rcamera.h"
 #include "rlgl.h"
 
 
@@ -32,47 +33,37 @@ Vector3 WorldVectorToPlayer(const Player *p1, Vector3 v1) {
 };
 }
 
-Vector3 LocalToWorld(const Player *p1, Vector3 v1)
-{
-    Vector3 World = Vector3Add(
-        Vector3Add(
-            Vector3Scale(p1->right, v1.x),
-            Vector3Scale(p1->up, v1.y)),
-        Vector3Scale(p1->front, v1.z));
-
-    return Vector3Normalize(World);
-}
-
-
-bool debug = false;
+bool ENABLE_DEBUG = false;
+bool ENABLE_FREECAM = false;
 
 int main(int argc, char* argv[])
 {
 	printf("Hello, world!\n");
 
-        // Argument Handling
-
-        printf("Arguments: ");
-        for (int i = 0; i < argc; i++) {
-            printf("%s ", argv[i]);
-          if (strcmp(argv[i], "--debug") == 0) {
-
-              debug = true;
-          }
+    // Argument Handling
+    printf("Arguments: ");
+    for (int i = 0; i < argc; i++) {
+        printf("%s ", argv[i]);
+        if (strcmp(argv[i], "--debug") == 0) {
+            ENABLE_DEBUG = true;
         }
-        printf("\n");
+        if (strcmp(argv[i], "--freecam") == 0) {
+            ENABLE_FREECAM = true;
 
-	// set sum screens
+        }
+    }
+    printf("\n");
+
+	// Window-specific setup
 	const int screenWidth = 800;
 	const int screenHeight = 450;
 
-	// Resizable window
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 
-    // Init window
-	InitWindow(screenWidth, screenHeight, "raylib projeccs (GLFW!)");
+    InitWindow(screenWidth, screenHeight, "raylib projeccs (GLFW!)");
 
-	Camera3D camera = { 0 };
+    // Player-specific setup
+    Camera3D camera = { 0 };
 	camera.position = (Vector3){ 0.0f, 16.0f, 16.0f };
 	camera.target = (Vector3){ 10.0f, 2.0f, 10.0f };
 	camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
@@ -85,20 +76,17 @@ int main(int argc, char* argv[])
     player.up = (Vector3){0.0f, 1.0f, 0.0f};
     player.right = Vector3CrossProduct(player.front, player.up);
 
-	/* Vector3 playerPos = (Vector3){ 0.0f, 0.0f, 0.0f }; */
-    /* Vector3 playerFront = camera.target; */
-    /* Vector3 playerUp = (Vector3){0.0f, 1.0f, 0.0f}; */
-    /* Vector3 playerRight = Vector3CrossProduct(playerFront, playerUp); */
+    bool DEBUG_ON = false;
+    bool FREECAM_ON = false;
 
+	// World-specific config
     Vector3 orbitalPlanetPos = (Vector3){ 0.0f, 0.0f, 0.0f };
 
-	// Generate cubemap
-	Mesh cube = GenMeshCube(1.0f, 1.0f, 1.0f);
+    Mesh cube = GenMeshCube(1.0f, 1.0f, 1.0f);
 	Model skybox = LoadModelFromMesh(cube);
 	Image img = LoadImage("assets/StandardCubeMap.png");
 	TextureCubemap cubemap = LoadTextureCubemap(img, CUBEMAP_LAYOUT_AUTO_DETECT);
 
-	// Specified cubemap shaders
 	Shader ShaderCubemap = LoadShader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
 	skybox.materials[0].shader = ShaderCubemap;
 
@@ -106,59 +94,54 @@ int main(int argc, char* argv[])
 	UnloadImage(img);
 
 
-	// Ready the game
+	// Final touches
 	DisableCursor();
-
-	// set gamer frames
 	SetTargetFPS(60);
 
-
-	// Do stuff wihle window is open
+	// Do stuff while window is open, A.K.A game loop.
 	while (!WindowShouldClose()) {
 		// -----------------------
 		// Update variables here
 		// -----------------------
+        if (IsKeyPressed(KEY_K) && ENABLE_FREECAM) FREECAM_ON = !FREECAM_ON;
+        if (IsKeyPressed(KEY_G) && ENABLE_DEBUG) DEBUG_ON = !DEBUG_ON;
 
-		UpdateCamera(&camera, CAMERA_THIRD_PERSON);
-
-		// Actual variables
-		/* player.pos = Vector3Subtract(camera.target, (Vector3){0.0f, 2.0f, 0.0f}); */
-        //camera.position = Vector3Add(player.pos, (Vector3){ 0.0f, 2.0f, 0.0f});
+        if (FREECAM_ON) {
+            UpdateCamera(&camera, CAMERA_FREE);
+            camera.up = (Vector3){0.0f, 1.0f, 0.0f};
+        } else {
+            UpdateCamera(&camera, CAMERA_THIRD_PERSON);
+        };
 
 		orbitalPlanetPos = (Vector3){ sin(GetTime() * 0.25f) * 25.0f, 0.0f, cos(GetTime() * 0.25f) * 25.0f};
 
-        // Player movement scripts
-		// Needed for player height
+        // Player world height translation
 		if (IsKeyDown(KEY_R)) {
             camera.target.y += 1.0f / 5.0f;
             camera.position.y += 1.0f / 5.0f;
-            player.pos.y += 1.0f / 5.0f;
         };
 		if (IsKeyDown(KEY_F)) {
             camera.target.y -= 1.0f / 5.0f;
             camera.position.y -= 1.0f / 5.0f;
-            player.pos.y -= 1.0f / 5.0f;
         };
 
-        player.up = (Vector3){0.0f, 1.0f, 0.0f};
+        // Allow camera roll
         if (IsKeyDown(KEY_Q)) {
-          camera.up =
-              Vector3RotateByAxisAngle(camera.up, camera.target, PI * 0.25f);
-          Vector3 Tempright =
-              Vector3Normalize(Vector3CrossProduct(camera.target, camera.up));
-          camera.up =
-              Vector3Normalize(Vector3CrossProduct(Tempright, camera.target));
+            CameraRoll(&camera, -0.0625 * PI);
+              /* Vector3Normalize(Vector3CrossProduct(Tempright, camera.target)); */
+        }
+        if (IsKeyDown(KEY_E)) {
+            CameraRoll(&camera, 0.0625 * PI);
+
         }
 
-        player.pos = Vector3Subtract(camera.target, (Vector3){ 0.0f, 1.0f, 0.0f});
-        //camera.target = Vector3Add(player.pos, player.front);
-        player.front = camera.target;
-        player.up = camera.up;
-        player.right = Vector3CrossProduct(player.front, player.up);
-
-        if(debug) DrawLine3D(player.pos,  Vector3Add(player.pos, player.up), (Color){255, 161, 0, 255});
-        if(debug) DrawLine3D(player.pos,  Vector3Add(player.pos, player.right), (Color){255, 161, 0, 255});
-        if(debug) DrawLine3D(player.pos,  Vector3Add(player.pos, player.front), (Color){255, 161, 0, 255});
+        if (!FREECAM_ON) {
+            player.pos = Vector3Subtract(camera.target, (Vector3){ 0.0f, 0.0f, 0.0f});
+            //camera.target = Vector3Add(player.pos, player.front);
+            player.front = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+            player.up = Vector3Normalize(camera.up);
+            player.right = Vector3Normalize(Vector3CrossProduct(player.front, player.up));
+        }
 
 		// Draw
 		// ---------------------
@@ -177,11 +160,16 @@ int main(int argc, char* argv[])
 		rlEnableBackfaceCulling();
 		rlEnableDepthMask();
 
-		// draw "PLAYER MODEL"
-		DrawSphere(player.pos, 0.5, BLACK);
-        printf("Player Position: %f, %f, %f\n", player.pos.x, player.pos.y, player.pos.z);
+		// draw "player model"
+        DrawSphere(player.pos, 0.5, BLACK);
+        DrawSphereWires(player.pos, 0.6f, 10, 10, GRAY);
 
-		// Draw 'star' sphere
+        // Player DEBUG axes
+        if(DEBUG_ON) DrawLine3D(player.pos,  Vector3Add(player.pos, Vector3Scale(player.up, 2)), GREEN);
+        if(DEBUG_ON) DrawLine3D(player.pos,  Vector3Add(player.pos, Vector3Scale(player.right,2 )), BLUE);
+        if(DEBUG_ON) DrawLine3D(player.pos,  Vector3Add(player.pos, Vector3Scale(player.front, 2)), RED);
+
+        // Draw 'star' sphere
 		DrawSphere((Vector3){0,0,0}, 10, YELLOW);
 		DrawSphereWires((Vector3){0,0,0}, 10.05f, 20, 20, GRAY);
 
