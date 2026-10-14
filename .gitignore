@@ -1,0 +1,2 @@
+# Remove existing build/ files
+build/*

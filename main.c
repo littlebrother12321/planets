@@ -1,0 +1,134 @@
+//Makeing a basic planet explorer game.
+
+#include <stdio.h>
+#include "raylib.h"
+#include "raymath.h"
+#include "rlgl.h"
+
+
+#if defined(PLATFORM_DESKTOP)
+    #define GLSL_VERSION            330
+#else   // PLATFORM_ANDROID, PLATFORM_WEB
+    #define GLSL_VERSION            100
+#endif
+
+
+int main(void)
+{
+	printf("Hello, world!\n");
+
+	// set sum screens
+	const int screenWidth = 800;
+	const int screenHeight = 450;
+
+	// Resizable window
+	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+
+    // Init window
+	InitWindow(screenWidth, screenHeight, "raylib projeccs (GLFW!)");
+
+	Camera3D camera = { 0 };
+	camera.position = (Vector3){ 0.0f, 16.0f, 16.0f };
+	camera.target = (Vector3){ 10.0f, 0.0f, 10.0f };
+	camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
+	camera.fovy = 45.0f;
+	camera.projection = CAMERA_PERSPECTIVE;
+
+	Vector3 playerPos = (Vector3){ 0.0f, 0.0f, 0.0f };
+	Vector3 orbitalPlanetPos = (Vector3){ 0.0f, 0.0f, 0.0f };
+
+	// Generate cubemap
+	Mesh cube = GenMeshCube(1.0f, 1.0f, 1.0f);
+	Model skybox = LoadModelFromMesh(cube);
+	Image img = LoadImage("assets/StandardCubeMap.png");
+	TextureCubemap cubemap = LoadTextureCubemap(img, CUBEMAP_LAYOUT_AUTO_DETECT);
+
+	// Specified cubemap shaders
+	Shader ShaderCubemap = LoadShader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
+	skybox.materials[0].shader = ShaderCubemap;
+
+	skybox.materials[0].maps[MATERIAL_MAP_CUBEMAP].texture = cubemap;
+	UnloadImage(img);
+
+
+	// Ready the game
+	DisableCursor();
+
+	// set gamer frames
+	SetTargetFPS(60);
+
+
+	// Do stuff wihle window is open
+	while (!WindowShouldClose()) {
+		// -----------------------
+		// Update variables here
+		// -----------------------
+
+		UpdateCamera(&camera, CAMERA_THIRD_PERSON);
+
+		// Actual variables
+		playerPos = camera.target;
+
+		orbitalPlanetPos = (Vector3){ sin(GetTime() * 0.25f) * 25.0f, 0.0f, cos(GetTime() * 0.25f) * 25.0f};
+
+		// Needed for player height
+		if (IsKeyDown(KEY_R)) {
+			camera.target.y += 1.0f / 5.0f;
+			camera.position.y += 1.0f / 5.0f;
+		};
+		if (IsKeyDown(KEY_F)) {
+			camera.target.y -= 1.0f / 5.0f;
+			camera.position.y -= 1.0f / 5.0f;
+		};
+
+
+		// Draw
+		// ---------------------
+
+		BeginDrawing();
+
+		// set glClearColor (hope i got that jargon right)
+		ClearBackground(BLACK);
+
+		BeginMode3D(camera);
+
+		// Draw skybox first
+		rlDisableBackfaceCulling();
+		rlDisableDepthMask();
+		DrawModel(skybox, (Vector3){0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
+		rlEnableBackfaceCulling();
+		rlEnableDepthMask();
+
+		// draw "PLAYER MODEL"
+		DrawSphere(playerPos, 0.5, BLACK);
+
+		// Draw 'star' sphere
+		DrawSphere((Vector3){0,0,0}, 10, YELLOW);
+		DrawSphereWires((Vector3){0,0,0}, 10.05f, 20, 20, GRAY);
+
+		// Draw 'orbital' sphere
+
+		DrawSphere(orbitalPlanetPos, 3, RED);
+
+		DrawGrid(80, 1.0f);
+
+		EndMode3D();
+	   
+		// make some text
+		DrawText("WOW! TEXT!", 10, 10, 20, BLACK);
+		DrawText(TextFormat("CameraPos: %.1f, %.1f, %.1f", camera.position.x, camera.position.y, camera.position.z), 10, 30, 20, BLACK);
+		DrawText(TextFormat("CameraUp: %.1f, %.1f, %.1f", camera.up.x, camera.up.y, camera.up.z), 10, 50, 20, BLACK);
+		DrawText(TextFormat("CameraTarget: %.1f, %.1f, %.1f", camera.target.x, camera.target.y, camera.target.z), 10, 70, 20, BLACK);
+
+		// explanitory on self?
+		EndDrawing();
+	}
+
+	// De-init
+	CloseWindow(); // Close window and GL contextx
+
+	return 0;
+}
+
+
+
