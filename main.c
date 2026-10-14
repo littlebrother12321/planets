@@ -14,6 +14,36 @@
 #define GLSL_VERSION            100
 #endif
 
+typedef struct Player{
+    Vector3 pos;
+    Vector3 front;
+    Vector3 up;
+    Vector3 right;
+
+} Player;
+
+
+Vector3 WorldVectorToPlayer(const Player *p1, Vector3 v1) {
+
+    return (Vector3) {
+    .x = Vector3DotProduct(v1, p1->right),
+    .y = Vector3DotProduct(v1, p1->up),
+    .z = Vector3DotProduct(v1, p1->front)
+};
+}
+
+Vector3 LocalToWorld(const Player *p1, Vector3 v1)
+{
+    Vector3 World = Vector3Add(
+        Vector3Add(
+            Vector3Scale(p1->right, v1.x),
+            Vector3Scale(p1->up, v1.y)),
+        Vector3Scale(p1->front, v1.z));
+
+    return Vector3Normalize(World);
+}
+
+
 bool debug = false;
 
 int main(int argc, char* argv[])
@@ -49,10 +79,16 @@ int main(int argc, char* argv[])
 	camera.fovy = 45.0f;
 	camera.projection = CAMERA_PERSPECTIVE;
 
-	Vector3 playerPos = (Vector3){ 0.0f, 0.0f, 0.0f };
-    Vector3 playerFront = camera.target;
-    Vector3 playerUp = (Vector3){0.0f, 1.0f, 0.0f};
-    Vector3 playerRight = Vector3CrossProduct(playerFront, playerUp);
+    struct Player player;
+    player.pos = (Vector3){ 0.0f, 0.0f, 0.0f };
+    player.front = (Vector3){ 0.0f, 0.0f, 1.0f };
+    player.up = (Vector3){0.0f, 1.0f, 0.0f};
+    player.right = Vector3CrossProduct(player.front, player.up);
+
+	/* Vector3 playerPos = (Vector3){ 0.0f, 0.0f, 0.0f }; */
+    /* Vector3 playerFront = camera.target; */
+    /* Vector3 playerUp = (Vector3){0.0f, 1.0f, 0.0f}; */
+    /* Vector3 playerRight = Vector3CrossProduct(playerFront, playerUp); */
 
     Vector3 orbitalPlanetPos = (Vector3){ 0.0f, 0.0f, 0.0f };
 
@@ -86,23 +122,43 @@ int main(int argc, char* argv[])
 		UpdateCamera(&camera, CAMERA_THIRD_PERSON);
 
 		// Actual variables
-		playerPos = Vector3Subtract(camera.target, (Vector3){0.0f, 2.0f, 0.0f});
+		/* player.pos = Vector3Subtract(camera.target, (Vector3){0.0f, 2.0f, 0.0f}); */
+        //camera.position = Vector3Add(player.pos, (Vector3){ 0.0f, 2.0f, 0.0f});
 
 		orbitalPlanetPos = (Vector3){ sin(GetTime() * 0.25f) * 25.0f, 0.0f, cos(GetTime() * 0.25f) * 25.0f};
 
+        // Player movement scripts
 		// Needed for player height
 		if (IsKeyDown(KEY_R)) {
             camera.target.y += 1.0f / 5.0f;
             camera.position.y += 1.0f / 5.0f;
-		};
+            player.pos.y += 1.0f / 5.0f;
+        };
 		if (IsKeyDown(KEY_F)) {
-			camera.target.y -= 1.0f / 5.0f;
+            camera.target.y -= 1.0f / 5.0f;
             camera.position.y -= 1.0f / 5.0f;
+            player.pos.y -= 1.0f / 5.0f;
         };
 
-        camera.up = playerUp;
+        player.up = (Vector3){0.0f, 1.0f, 0.0f};
+        if (IsKeyDown(KEY_Q)) {
+          camera.up =
+              Vector3RotateByAxisAngle(camera.up, camera.target, PI * 0.25f);
+          Vector3 Tempright =
+              Vector3Normalize(Vector3CrossProduct(camera.target, camera.up));
+          camera.up =
+              Vector3Normalize(Vector3CrossProduct(Tempright, camera.target));
+        }
 
-        if(debug) DrawLine3D(playerPos,  Vector3Add(playerPos, playerUp), (Color){255, 161, 0, 255});
+        player.pos = Vector3Subtract(camera.target, (Vector3){ 0.0f, 1.0f, 0.0f});
+        //camera.target = Vector3Add(player.pos, player.front);
+        player.front = camera.target;
+        player.up = camera.up;
+        player.right = Vector3CrossProduct(player.front, player.up);
+
+        if(debug) DrawLine3D(player.pos,  Vector3Add(player.pos, player.up), (Color){255, 161, 0, 255});
+        if(debug) DrawLine3D(player.pos,  Vector3Add(player.pos, player.right), (Color){255, 161, 0, 255});
+        if(debug) DrawLine3D(player.pos,  Vector3Add(player.pos, player.front), (Color){255, 161, 0, 255});
 
 		// Draw
 		// ---------------------
@@ -122,7 +178,8 @@ int main(int argc, char* argv[])
 		rlEnableDepthMask();
 
 		// draw "PLAYER MODEL"
-		DrawSphere(playerPos, 0.5, BLACK);
+		DrawSphere(player.pos, 0.5, BLACK);
+        printf("Player Position: %f, %f, %f\n", player.pos.x, player.pos.y, player.pos.z);
 
 		// Draw 'star' sphere
 		DrawSphere((Vector3){0,0,0}, 10, YELLOW);
