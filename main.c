@@ -1,21 +1,36 @@
 //Makeing a basic planet explorer game.
 
 #include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
 
 
 #if defined(PLATFORM_DESKTOP)
-    #define GLSL_VERSION            330
+#define GLSL_VERSION            330
 #else   // PLATFORM_ANDROID, PLATFORM_WEB
-    #define GLSL_VERSION            100
+#define GLSL_VERSION            100
 #endif
 
+bool debug = false;
 
-int main(void)
+int main(int argc, char* argv[])
 {
 	printf("Hello, world!\n");
+
+        // Argument Handling
+
+        printf("Arguments: ");
+        for (int i = 0; i < argc; i++) {
+            printf("%s ", argv[i]);
+          if (strcmp(argv[i], "--debug") == 0) {
+
+              debug = true;
+          }
+        }
+        printf("\n");
 
 	// set sum screens
 	const int screenWidth = 800;
@@ -29,13 +44,17 @@ int main(void)
 
 	Camera3D camera = { 0 };
 	camera.position = (Vector3){ 0.0f, 16.0f, 16.0f };
-	camera.target = (Vector3){ 10.0f, 0.0f, 10.0f };
+	camera.target = (Vector3){ 10.0f, 2.0f, 10.0f };
 	camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
 	camera.fovy = 45.0f;
 	camera.projection = CAMERA_PERSPECTIVE;
 
 	Vector3 playerPos = (Vector3){ 0.0f, 0.0f, 0.0f };
-	Vector3 orbitalPlanetPos = (Vector3){ 0.0f, 0.0f, 0.0f };
+    Vector3 playerFront = camera.target;
+    Vector3 playerUp = (Vector3){0.0f, 1.0f, 0.0f};
+    Vector3 playerRight = Vector3CrossProduct(playerFront, playerUp);
+
+    Vector3 orbitalPlanetPos = (Vector3){ 0.0f, 0.0f, 0.0f };
 
 	// Generate cubemap
 	Mesh cube = GenMeshCube(1.0f, 1.0f, 1.0f);
@@ -67,20 +86,23 @@ int main(void)
 		UpdateCamera(&camera, CAMERA_THIRD_PERSON);
 
 		// Actual variables
-		playerPos = camera.target;
+		playerPos = Vector3Subtract(camera.target, (Vector3){0.0f, 2.0f, 0.0f});
 
 		orbitalPlanetPos = (Vector3){ sin(GetTime() * 0.25f) * 25.0f, 0.0f, cos(GetTime() * 0.25f) * 25.0f};
 
 		// Needed for player height
 		if (IsKeyDown(KEY_R)) {
-			camera.target.y += 1.0f / 5.0f;
-			camera.position.y += 1.0f / 5.0f;
+            camera.target.y += 1.0f / 5.0f;
+            camera.position.y += 1.0f / 5.0f;
 		};
 		if (IsKeyDown(KEY_F)) {
 			camera.target.y -= 1.0f / 5.0f;
-			camera.position.y -= 1.0f / 5.0f;
-		};
+            camera.position.y -= 1.0f / 5.0f;
+        };
 
+        camera.up = playerUp;
+
+        if(debug) DrawLine3D(playerPos,  Vector3Add(playerPos, playerUp), (Color){255, 161, 0, 255});
 
 		// Draw
 		// ---------------------
@@ -116,9 +138,9 @@ int main(void)
 	   
 		// make some text
 		DrawText("WOW! TEXT!", 10, 10, 20, BLACK);
-		DrawText(TextFormat("CameraPos: %.1f, %.1f, %.1f", camera.position.x, camera.position.y, camera.position.z), 10, 30, 20, BLACK);
-		DrawText(TextFormat("CameraUp: %.1f, %.1f, %.1f", camera.up.x, camera.up.y, camera.up.z), 10, 50, 20, BLACK);
-		DrawText(TextFormat("CameraTarget: %.1f, %.1f, %.1f", camera.target.x, camera.target.y, camera.target.z), 10, 70, 20, BLACK);
+		DrawText(TextFormat("CameraPos: %.1f, %.1f, %.1f", camera.position.x, camera.position.y, camera.position.z), 10, 30, 20, RAYWHITE);
+		DrawText(TextFormat("CameraUp: %.2f, %.2f, %.2f", camera.up.x, camera.up.y, camera.up.z), 10, 50, 20, RAYWHITE);
+		DrawText(TextFormat("CameraTarget: %.1f, %.1f, %.1f", camera.target.x, camera.target.y, camera.target.z), 10, 70, 20, RAYWHITE);
 
 		// explanitory on self?
 		EndDrawing();
