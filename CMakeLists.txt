@@ -39,7 +39,10 @@ set(BOX2D_SAMPLES OFF CACHE INTERNAL "")
 FetchContent_MakeAvailable(box2d)
 
 # Make executable
-add_executable(${PROJECT_NAME} main.c)
+add_executable(${PROJECT_NAME} 
+	main.c
+	skybox.c
+)
 
 # Add the images in the assets directory
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/assets"

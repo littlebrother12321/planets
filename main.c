@@ -8,6 +8,7 @@
 #include "rcamera.h"
 #include "rlgl.h"
 
+#include "skybox.h"
 
 #if defined(PLATFORM_DESKTOP)
 #define GLSL_VERSION            330
@@ -82,16 +83,18 @@ int main(int argc, char* argv[])
 	// World-specific config
     Vector3 orbitalPlanetPos = (Vector3){ 0.0f, 0.0f, 0.0f };
 
-    Mesh cube = GenMeshCube(1.0f, 1.0f, 1.0f);
-	Model skybox = LoadModelFromMesh(cube);
-	Image img = LoadImage("assets/StandardCubeMap.png");
-	TextureCubemap cubemap = LoadTextureCubemap(img, CUBEMAP_LAYOUT_AUTO_DETECT);
 
-	Shader ShaderCubemap = LoadShader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
-	skybox.materials[0].shader = ShaderCubemap;
+    InitSkybox();
+    /* Mesh cube = GenMeshCube(1.0f, 1.0f, 1.0f); */
+	/* Model skybox = LoadModelFromMesh(cube); */
+	/* Image img = LoadImage("assets/skybox.png"); */
+	/* TextureCubemap cubemap = LoadTextureCubemap(img, CUBEMAP_LAYOUT_AUTO_DETECT); */
 
-	skybox.materials[0].maps[MATERIAL_MAP_CUBEMAP].texture = cubemap;
-	UnloadImage(img);
+	/* Shader ShaderCubemap = LoadShader("assets/shaders/cubemap.vs", "assets/shaders/cubemap.fs"); */
+	/* skybox.materials[0].shader = ShaderCubemap; */
+
+	/* skybox.materials[0].maps[MATERIAL_MAP_CUBEMAP].texture = cubemap; */
+	/* UnloadImage(img); */
 
 
 	// Final touches
@@ -102,7 +105,7 @@ int main(int argc, char* argv[])
 	while (!WindowShouldClose()) {
 		// -----------------------
 		// Update variables here
-		// -----------------------
+
         if (IsKeyPressed(KEY_K) && ENABLE_FREECAM) FREECAM_ON = !FREECAM_ON;
         if (IsKeyPressed(KEY_G) && ENABLE_DEBUG) DEBUG_ON = !DEBUG_ON;
 
@@ -125,17 +128,16 @@ int main(int argc, char* argv[])
             camera.position.y -= 1.0f / 5.0f;
         };
 
-        // Allow camera roll
+        // Allow camera roll using Q and E keys
         if (IsKeyDown(KEY_Q)) {
             CameraRoll(&camera, -0.0625 * PI);
               /* Vector3Normalize(Vector3CrossProduct(Tempright, camera.target)); */
         }
         if (IsKeyDown(KEY_E)) {
             CameraRoll(&camera, 0.0625 * PI);
-
         }
 
-        if (!FREECAM_ON) {
+               if (!FREECAM_ON) {
             player.pos = Vector3Subtract(camera.target, (Vector3){ 0.0f, 0.0f, 0.0f});
             //camera.target = Vector3Add(player.pos, player.front);
             player.front = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
@@ -154,11 +156,12 @@ int main(int argc, char* argv[])
 		BeginMode3D(camera);
 
 		// Draw skybox first
-		rlDisableBackfaceCulling();
-		rlDisableDepthMask();
-		DrawModel(skybox, (Vector3){0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
-		rlEnableBackfaceCulling();
-		rlEnableDepthMask();
+        DrawSkybox();
+        /* rlDisableBackfaceCulling(); */
+		/* rlDisableDepthMask(); */
+		/* DrawModel(skybox, (Vector3){0.0f, 0.0f, 0.0f}, 1.0f, WHITE); */
+		/* rlEnableBackfaceCulling(); */
+		/* rlEnableDepthMask(); */
 
 		// draw "player model"
         DrawSphere(player.pos, 0.5, BLACK);
@@ -191,6 +194,7 @@ int main(int argc, char* argv[])
 		EndDrawing();
 	}
 
+    EndSkybox();
 	// De-init
 	CloseWindow(); // Close window and GL contextx
 
